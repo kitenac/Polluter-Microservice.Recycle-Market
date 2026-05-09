@@ -1,0 +1,67 @@
+import asyncio
+from sqlalchemy.future import select 
+
+from app.data.db import sessionFactory, init_models
+from app.data.orm import Models
+from app.data.schemas import *
+
+from app.data.mock_tables import PolluterFactory, WasteCategoryPseudoFactory, PolluterWastePseudoFactory
+
+
+
+class Build_Tables:
+    @staticmethod
+    async def initial_populate():
+        '''
+         Add random records to low-lvl tables (without FK)
+        '''
+        async with sessionFactory() as session:  # Create a new session: "with" - to auto-manage session - close it after usage
+            # get from mock random Polluters and Wastes
+            polluter = PolluterFactory.generate_batch(strategy='build', size=5) 
+            waste_category = WasteCategoryPseudoFactory()
+            # push batches to session and commit (it`s OK to push diff types of records at once) 
+            session.add_all(polluter)
+            session.add_all(waste_category)
+            await session.commit()         
+
+    @staticmethod
+    async def OO_wastes_populate(size=5):
+        '''
+        Populate PolluterWastes table with random wastes (using mock PolluterWastePseudoFactory)
+        '''
+        
+        async with sessionFactory() as session:  
+            # prepare Polluters and WasteCategories for mock function - to get their ids (FK in this table)
+            polluters        = await session.execute(select(Models.Polluter_OO))
+            waste_categories = await session.execute(select(Models.WasteCategory))
+            # retrive result-rows from awaited coroutines
+            polluters, waste_categories = polluters.scalars().all(), waste_categories.scalars().all()
+            
+            # get from mock random wastes (for random polluters)
+            polluter_wastes = PolluterWastePseudoFactory(size, polluters, waste_categories)
+            
+            # pull to DB
+            session.add_all(polluter_wastes)
+            await session.commit() 
+
+            # return pydentic schemed-array - for API endpoint result
+            return [ convert_to_pydentic(waste, PolluterWaste) for waste in polluter_wastes]
+            '''
+            # TODO: move in logs
+            for el in polluter_wastes:
+                print(el.__dict__) 
+                session.add(el)'''
+             
+
+
+
+if __name__ == "__main__":
+    # create Tables in DB Atom_Eco (assumes Postgress container with such DB name is up)
+    asyncio.run(init_models())
+
+    # fill low-lvl tables (without FK) - at start
+    asyncio.run(Build_Tables.initial_populate())
+
+    # fill high-lvl tables (with FK)
+    asyncio.run(Build_Tables.OO_wastes_populate())
+

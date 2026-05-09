@@ -1,0 +1,121 @@
+from fastapi import APIRouter, Depends, Body, HTTPException, Response
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+
+from app.data.db import get_db_session, sessionFactory
+from app.data.orm import Models
+from app.data.schemas import *
+from app.web.response_statuses import common_statuses
+from app.web.status_code_handle import category_handler, amount_to_create_handler
+
+from app.data.preparing.build_some_tables import Build_Tables # reuse generation records for Tables from mock-function. also we can reuse Factories from mocktables + push in db - like in Build_Tables :)
+
+router = APIRouter(prefix='/polluter')
+
+
+# Create pollutor
+@router.post('', status_code=201, summary='add polluter-organization')
+async def create_polluter(
+    name:  str   = Body(description='company name'), 
+    x_geo: float = Body(description='X coordinate of company'),
+    y_geo: float = Body(description='Y coordinate of company'),
+    SessionLocal: AsyncSession = Depends(get_db_session)
+):
+    polluter = Models.Polluter_OO(name=name, x_geo=x_geo, y_geo=y_geo)
+    SessionLocal.add(polluter)
+    await SessionLocal.commit()
+    
+    # send_command_to_demon('Polluter_OO_ADD', convert_to_pydentic(polluter, Polluter_OO))
+    return API_Response(
+        **common_statuses[201]['CREATED'],
+        data=[polluter]
+    )
+
+
+# Add wastes to PolluterWastes queue
+@router.post('/{polluter_id}/wastes', status_code=201, summary='Add (register) some waste from chosen polluter')
+async def add_polluter_wastes(
+   polluter_id:  str,
+   amount:       int = Body(), 
+   category:     str = Body(), 
+   SessionLocal: AsyncSession = Depends(get_db_session)
+):
+    ''' Registrate new waste (of some category and ammont) by some polluter organization. recycler will watch this queue '''
+    
+    # handling invalid params
+    if amount < 1: return amount_to_create_handler(amount) 
+    category_handler(category) # Rise HTTP exception 409 if chosen category doesn`t excists
+    
+    polluter_waste = Models.PolluterWaste(
+        polluter_id = polluter_id,
+        category    = category,
+        amount      = amount
+    )
+
+    SessionLocal.add(polluter_waste)
+    await SessionLocal.commit()
+
+    # send_command_to_demon('PolluterWaste_ADD', convert_to_pydentic(polluter_waste, PolluterWaste))
+    return API_Response(
+        **common_statuses[201]['CREATED'],
+        data=[polluter_waste]
+    )
+
+
+@router.post('/fill/random_polluter_wastes', status_code=201, summary='Add amount of random wastes from random polluteres')
+async def add_polluter_wastes(
+    amount: int = Body(description='amount of wastes to add')
+):
+    '''Generate random wastes (type + amount) by random Polluter'''
+    
+    if amount < 1: return amount_to_create_handler(amount) 
+
+    rnd_wastes = await Build_Tables.OO_wastes_populate(amount)  # reuse generation records for Tables from mock-function
+        
+    return API_Response(
+        **common_statuses[201]['CREATED'],
+        data=rnd_wastes,
+        meta=API_Response.MetaData(total=amount, metadata='mock-generated data')
+    )
+    
+
+# Read
+async def read_table(
+        ORM_Model, 
+        Schema: BaseModel):
+    '''typical read + convert: db -> sqlalchemy -> pydentic'''
+    
+    async with sessionFactory() as session:
+        rows = await session.execute(select(ORM_Model))
+        rows = rows.scalars().all()
+        if len(rows) == 0:
+            return Response(204)        # special case with no metadata on purose: 204 must have no 'content'
+
+        rows = [Schema(**el.__dict__) for el in rows]    # TODO: find different neet way to fill pydentic models, due uncpacking as dictionary mb dirty    
+        return API_Response(
+            **common_statuses[200]['OK'],
+            data=rows, 
+            meta=API_Response.MetaData(
+                total=len(rows)
+            ))
+
+
+@router.get('', summary='get all polluter organizations')
+async def get_all_polluters():
+    return await read_table(Models.Polluter_OO, Polluter_OO)
+
+@router.get('polluter-wastes', summary='get all the polluters` wastes')
+async def get_all_polluter_wastes():
+    return await read_table(Models.PolluterWaste, PolluterWaste)
+
+@router.get('waste-categories', summary='get all excisting waste types')
+async def get_all_polluter_wastes():
+    return await read_table(Models.WasteCategory, WasteCategory)
+
+
+
+''' #TODO
+- Upadte
+- Delete
+- other HTTP methods
+'''

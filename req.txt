@@ -1,0 +1,12 @@
+uvicorn                             # web server
+fastapi                             # web framework
+sqlalchemy                          # ORM
+sqlalchemy_utils                    # ORM helper functions: database_exists, create_database
+psycopg[binary,pool]                # aka psycopg3 - it supports async DB engine 
+psycopg2-binary                     # another patch for pity psycopg deprication :) -hope next time it won`t force u to seek for another stable name |  dependency for creating DB
+pytest                              # tests
+graphviz                            # to draw
+lxml                                # lib to draw svg tables (it was taken from users lib "sqlalchemy-data-model-visualizer" not to import it entirely with all the deps) 
+faker                               # mocks data
+factory_boy                         # mocks - realistic data + sqlalchemy integration
+sqladmin                            # cool admin page - eazy db management

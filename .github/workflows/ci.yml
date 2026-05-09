@@ -1,0 +1,183 @@
+#                Workflow/pipeline
+#
+#  generate db illustration  ---> push to repo
+#  
+# *each job runs in separate space (paralley) - by default
+#
+# !!! works via ssh keys (for other access options, i.e. PAT - modify checkout steps everywhere)
+
+name: CI pipeline for Project
+
+# ========== Triggers ==========
+on:
+  push:
+    branches: [ master ]
+    paths-ignore: ['data_model_diagram', 'data_model_diagram.svg'] # avoid triggering CI on these diagrams - oughta generate via CI`s pipeline itself: i.e push in repository on passing all the tests - to update Readme with actual DB diagram. push => action => everlasting loop... - so reduce it
+  pull_request:
+    branches: [ master ]
+    paths-ignore: ['data_model_diagram', 'data_model_diagram.svg'] # same
+
+permissions:
+  contents: write # "write" perm - to push updated diagrams of DB`s Tables
+
+
+# ========== Jobs (separate VMs in fact) ==========
+jobs: 
+  # (ТODO - add pytests to project) Tests
+  Unit_tests:
+     # needs: Linter_check # TODO - basic linter check before runnin tests 
+     runs-on: ubuntu-slim # only 1 vCPU, 5 Gb RAM - faster for simple tests | !!! change to ubuntu:latest if u want to run app - 4 vCPU, 16 Gb RAM
+     container:
+      image: debian:stable-slim # convinent way to run Workflow(pipline) on Debian - using container
+  
+     steps:
+      - name: download repository`s files
+        uses: actions/checkout@v6
+        with:
+            ssh-key: ${{ secrets.SSH_PRIVATE_KEY }}
+      
+      - name: Prepare APT (next step - auto install + cache with apt)
+        run: apt-get update -y
+      # custom neat action: download + cache APT libs (could make same with actions/cache@v4 and if clause - which is muuuuch longer)
+      - name: "[PATCH] download and CACHE missing APT libs" 
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: lsb-release python3-pip
+          version: 1.0
+      
+      # caching python - already included
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+
+      - name: CACHE python dependencies (up to 10 Gb free storage vanishing every 7 days)
+        id: cache-deps-venv    # to refer by id in step bellow
+        uses: actions/cache@v4
+        with: 
+         path: ./myenv
+         # uniq key tells if we can reuse cache (checks if it`s same OS + same dependencies (req.txt), othervise - new cache)
+         # if key misses (1 st time) - cache uploads in "path" on finishing job
+         key:  uuid3-${{ runner.os }}-${{ hashFiles('req.txt') }}
+
+
+      - name: '[if CACHE miss] Create venv "myenv" (security demand from github runner) and download dependencies in venv'
+        # "!= 'true'".  Not "== 'false'" due cache-hit may be '' - empty string
+        if: steps.cache-deps-venv.outputs.cache-hit != 'true'
+        run: |
+         python3 -m venv myenv 
+         . myenv/bin/activate && pip install -r req.txt
+
+      # тут будут простые и быстрые тесты функций на логику 
+      - name: Test with pytest
+        run: . myenv/bin/activate && pytest
+
+
+  # Auto-generate and push new diagram of DB`s Tables 
+  Draw_DB_diagram:
+   needs: [Unit_tests]        # generate after ALL CI tests passed 
+   runs-on: ubuntu-latest
+   container:
+    image: debian:stable-slim 
+
+   steps:
+     - name: download repository`s files
+       uses: actions/checkout@v6
+       with:
+        ssh-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+     - name: Prepare APT (next step - auto install + cache with apt)
+       run: apt-get update -y
+     - name: "[PATCH] download and CACHE missing APT libs" 
+       uses: awalsh128/cache-apt-pkgs-action@latest
+       with:
+        packages: lsb-release python3-pip 
+        version: 1.0
+        
+     - name: "[PATCH] Setup graphviz package each run (requires reinstall xdg-utils)"  
+       run: apt-get update -y && apt-get install graphviz -y 
+
+     - name: Set up Python 3.13
+       uses: actions/setup-python@v6
+       with:
+        python-version: "3.13"
+
+     - name: CACHE python dependencies (up to 10 Gb free storage vanishing every 7 days)
+       id: cache-deps-venv    
+       uses: actions/cache@v4
+       with: 
+        path: ./myenv  
+        # different key from cache of job above - bc graphviz install in "special way" - on run, othervise crushes
+        key:  uuid-WITH_DRAW_LIBS3-${{ runner.os }}-${{ hashFiles('req.txt') }}
+
+     - name: '[if CACHE miss] Create venv "myenv" (security demand from github runner) and download dependencies in venv'
+       if: steps.cache-deps-venv.outputs.cache-hit != 'true'
+       run: |
+         python3 -m venv myenv 
+         . myenv/bin/activate && pip install -r req.txt 
+
+     - name: Generate diagram      
+       run: |
+        echo 'All CI jobs passed - updating DB tables diagram...' 
+        . myenv/bin/activate 
+        python3 -m db-visualizer.db-visualizer
+    
+     - name: Upload Artefact # load illustration of DB in Artefacts (can be accessed from different jobs) 
+       uses: actions/upload-artifact@v4
+       with:
+        name: data_model_diagram
+        path: data_model_diagram.svg
+        retention-days: 1     # 1 day to hold - minimum
+
+  Push_Artifacts:
+   needs: [Draw_DB_diagram]   # push artifacts if all CI tests are passed and all artefacts are made
+
+  # push diagram of DB 
+  # TODO: сделай, чтоб несколько артефактов можно было передать на пуш разом, а не по одному
+   runs-on: ubuntu-latest
+   steps:
+    - name: download repository`s files # copy repository bc i use local (in repository) action "my_push_artifact" bellow 
+      uses: actions/checkout@v6
+      with:
+          ssh-key: ${{ secrets.SSH_PRIVATE_KEY }}
+    
+    - name: Push Artefacts - illustration of DB 
+      uses: ./.github/actions/my_push_artifact
+      with:
+        artifact-name: data_model_diagram
+        branch: master
+        commit-message: "[CI] pushing Artefacts: Generated newest illustration of DB Tables relationships"
+      
+  
+
+#!!! (Wish) Заменить на автоисправление - думаю, функции линтера в CI ни к чему 
+#  Linter_check:
+#   runs-on: ubuntu-latest
+#  
+#   steps:
+#   - uses: actions/checkout@v6 # someth manual to be able to push into repository
+#   
+#   - name: Set up Python 3.13
+#     uses: actions/setup-python@v6
+#     with:
+#       python-version: "3.13"
+#          
+#   # -------- TODO: выбрать, какие баги/правила стиля отслеживать -см. --select -------- 
+#   - name: Lint with flake8
+#     run: |
+#      # stop the build if there are Python syntax errors or undefined names
+#      flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+#      # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
+#      flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+#
+#    в конце концов - в артифакты пушить в код 
+#    !!!! как-то избежать триггер на бесконечный запуск CI из-за форматирования (формально - исправления) - мб есть какая-то настройка yml для игнора пуша из actions, а не пользователеи?
+
+
+# TODO: 
+# (Suoer Wish) --------- CD part -------
+#  deploy:
+#    needs: Unit_tests
+#    runs-on: VPS_IP/Domain i guess
+#    ...
