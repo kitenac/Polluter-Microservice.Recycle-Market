@@ -92,8 +92,11 @@ jobs:
      - name: "[PATCH] download and CACHE missing APT libs" 
        uses: awalsh128/cache-apt-pkgs-action@latest
        with:
-        packages: lsb-release python3-pip graphviz 
+        packages: lsb-release python3-pip 
         version: 1.0
+
+     - name: OK. install graphviz each time (not from cache) - it has some linking/path "magic" inside and somehow depends on runner instance - so just reinstall it...
+       run: sudo apt-get install graphviz 
 
      - name: Set up Python 3.13
        uses: actions/setup-python@v6
@@ -105,7 +108,6 @@ jobs:
        uses: actions/cache@v4
        with: 
         path: ./myenv  
-        # different key from cache of job above - bc graphviz install in "special way" - on run, othervise crushes
         key: uuid3-${{ runner.os }}-${{ hashFiles('req.txt') }}
 
      - name: '[if CACHE miss] Create venv "myenv" (security demand from github runner) and download dependencies in venv'
