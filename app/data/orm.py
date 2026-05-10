@@ -60,3 +60,7 @@ class Models:
         
         def __str__(self):
             return f'{self.category}-{self.polluter_id}'
+        
+    class TestCI(CommonModel):
+        __tablename__ = 'TestCI'
+        kek = Column(CHAR(32), default=67)
