@@ -106,18 +106,18 @@ jobs:
        with: 
         path: ./myenv  
         # different key from cache of job above - bc graphviz install in "special way" - on run, othervise crushes
-        key: WITH_DRAW_LIBS4-${{ runner.os }}-${{ hashFiles('req.txt') }}
+        key: WITH_DRAW_LIBS_5-${{ runner.os }}-${{ hashFiles('req.txt') }}
 
      - name: '[if CACHE miss] Create venv "myenv" (security demand from github runner) and download dependencies in venv'
        if: steps.cache-deps-venv.outputs.cache-hit != 'true'
        run: |
-         python3 -m venv myenv 
-         . myenv/bin/activate && pip install -r req.txt 
+         sudo python3 -m venv myenv 
+         sudo . myenv/bin/activate && pip install -r req.txt 
 
      - name: Generate diagram      
        run: |
         echo 'All CI jobs passed - updating DB tables diagram...' 
-        . myenv/bin/activate 
+        sudo . myenv/bin/activate 
         sudo python3 -m db_visualizer.db_visualizer
     
      - name: Upload Artefact # load illustration of DB in Artefacts (can be accessed from different jobs) 
