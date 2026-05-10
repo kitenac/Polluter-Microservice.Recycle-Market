@@ -92,7 +92,7 @@ jobs:
      - name: "[PATCH] download and CACHE missing APT libs" 
        uses: awalsh128/cache-apt-pkgs-action@latest
        with:
-        packages: lsb-release python3-pip graphviz
+        packages: python3-pip lsb-release graphviz 
         version: 1.0
 
      - name: Set up Python 3.13
@@ -106,7 +106,7 @@ jobs:
        with: 
         path: ./myenv  
         # different key from cache of job above - bc graphviz install in "special way" - on run, othervise crushes
-        key:  uuid-WITH_DRAW_LIBS3-${{ runner.os }}-${{ hashFiles('req.txt') }}
+        key:  uuid-WITH_DRAW_LIBS4-${{ runner.os }}-${{ hashFiles('req.txt') }}
 
      - name: '[if CACHE miss] Create venv "myenv" (security demand from github runner) and download dependencies in venv'
        if: steps.cache-deps-venv.outputs.cache-hit != 'true'
