@@ -26,7 +26,7 @@ jobs:
   # (ТODO - add pytests to project) Tests
   Unit_tests:
      # needs: Linter_check # TODO - basic linter check before runnin tests 
-     runs-on: ubuntu:latest # only 1 vCPU, 5 Gb RAM - faster for simple tests | !!! change to ubuntu:latest if u want to run app - 4 vCPU, 16 Gb RAM
+     runs-on: ubuntu-latest # only 1 vCPU, 5 Gb RAM - faster for simple tests | !!! change to ubuntu:latest if u want to run app - 4 vCPU, 16 Gb RAM
      container:
       image: debian:stable-slim # convinent way to run Workflow(pipline) on Debian - using container
   
