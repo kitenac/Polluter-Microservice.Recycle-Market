@@ -6,7 +6,7 @@
         !! мб неактуально после добавления graphviz в req.txt)  
         sudo apt-get install --reinstall xdg-utils
 запуск из корня репозитория:
- python3 -m db-visualizer.db-visualizer
+ python3 -m db_visualizer.db_visualizer
                 
 '''
 

@@ -27,8 +27,8 @@ jobs:
   Unit_tests:
      # needs: Linter_check # TODO - basic linter check before runnin tests 
      runs-on: ubuntu-latest # only 1 vCPU, 5 Gb RAM - faster for simple tests | !!! change to ubuntu:latest if u want to run app - 4 vCPU, 16 Gb RAM
-     container:
-      image: debian:stable-slim # convinent way to run Workflow(pipline) on Debian - using container
+     #container:
+     # image: debian:stable-slim # convinent way to run Workflow(pipline) on Debian - using container
   
      steps:
       - name: download repository`s files
@@ -78,8 +78,8 @@ jobs:
   Draw_DB_diagram:
    needs: [Unit_tests]        # generate after ALL CI tests passed 
    runs-on: ubuntu-latest
-   container:
-    image: debian:stable-slim 
+   #container:
+   # image: debian:stable-slim 
 
    steps:
      - name: download repository`s files
@@ -92,7 +92,7 @@ jobs:
      - name: "[PATCH] download and CACHE missing APT libs" 
        uses: awalsh128/cache-apt-pkgs-action@latest
        with:
-        packages: python3-pip lsb-release graphviz 
+        packages: lsb-release python3-pip graphviz 
         version: 1.0
 
      - name: Set up Python 3.13
