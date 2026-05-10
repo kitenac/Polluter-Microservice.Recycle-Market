@@ -92,11 +92,8 @@ jobs:
      - name: "[PATCH] download and CACHE missing APT libs" 
        uses: awalsh128/cache-apt-pkgs-action@latest
        with:
-        packages: lsb-release python3-pip 
+        packages: lsb-release python3-pip graphviz
         version: 1.0
-        
-     - name: "[PATCH] Setup graphviz package each run (requires reinstall xdg-utils)"  
-       run: apt-get update -y && apt-get install graphviz -y 
 
      - name: Set up Python 3.13
        uses: actions/setup-python@v6
