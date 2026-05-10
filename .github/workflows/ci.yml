@@ -111,14 +111,14 @@ jobs:
      - name: '[if CACHE miss] Create venv "myenv" (security demand from github runner) and download dependencies in venv'
        if: steps.cache-deps-venv.outputs.cache-hit != 'true'
        run: |
-         sudo python3 -m venv myenv 
+         python3 -m venv myenv 
          . myenv/bin/activate && pip install -r req.txt 
 
      - name: Generate diagram      
        run: |
         echo 'All CI jobs passed - updating DB tables diagram...' 
         . myenv/bin/activate 
-        sudo python3 -m db_visualizer.db_visualizer
+        python3 -m db_visualizer.db_visualizer
     
      - name: Upload Artefact # load illustration of DB in Artefacts (can be accessed from different jobs) 
        uses: actions/upload-artifact@v4
