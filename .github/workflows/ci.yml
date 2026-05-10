@@ -106,7 +106,7 @@ jobs:
        with: 
         path: ./myenv  
         # different key from cache of job above - bc graphviz install in "special way" - on run, othervise crushes
-        key:  uuid-WITH_DRAW_LIBS4-${{ runner.os }}-${{ hashFiles('req.txt') }}
+        key: WITH_DRAW_LIBS4-${{ runner.os }}-${{ hashFiles('req.txt') }}
 
      - name: '[if CACHE miss] Create venv "myenv" (security demand from github runner) and download dependencies in venv'
        if: steps.cache-deps-venv.outputs.cache-hit != 'true'
