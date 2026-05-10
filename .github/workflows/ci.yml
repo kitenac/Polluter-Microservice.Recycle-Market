@@ -37,7 +37,7 @@ jobs:
             ssh-key: ${{ secrets.SSH_PRIVATE_KEY }}
       
       - name: Prepare APT (next step - auto install + cache with apt)
-        run: apt-get update -y
+        run: sudo apt-get update -y
       # custom neat action: download + cache APT libs (could make same with actions/cache@v4 and if clause - which is muuuuch longer)
       - name: "[PATCH] download and CACHE missing APT libs" 
         uses: awalsh128/cache-apt-pkgs-action@latest
@@ -88,7 +88,7 @@ jobs:
         ssh-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
      - name: Prepare APT (next step - auto install + cache with apt)
-       run: apt-get update -y
+       run: sudo apt-get update -y
      - name: "[PATCH] download and CACHE missing APT libs" 
        uses: awalsh128/cache-apt-pkgs-action@latest
        with:
