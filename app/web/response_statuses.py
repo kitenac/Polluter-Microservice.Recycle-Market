@@ -17,6 +17,18 @@ common_statuses = {
             'details': 'entity created'
         }
     },
+    404: {
+        'NO_SUCH_RESOURCE': {
+            'status': 'NO_SUCH_RESOURCE',
+            'details': 'Chosen resource doesn`t excists!'
+        }
+    },
+    409: {
+        'CONFLICT_DATA': {
+            'status': 'CONFLICT_DATA',
+            'details': 'Chosen type of data doesn`t excists!'
+        }
+    },
     422:{
         'ERR_BAD_DATA': {
             'status': 'ERR_BAD_DATA',
@@ -27,12 +39,12 @@ common_statuses = {
             'details': 'Number of entitis must be > 0. -You can try DELETE method for this resource instead :)'
         },
     },
-    409: {
-        'CONFLICT_DATA': {
-            'status': 'CONFLICT_DATA',
-            'details': 'Chosen type of data doesn`t excists!'
+    500: {
+        'UNHANDLED_EXCEPTION': {
+            'status': 'UNHANDLED_EXCEPTION',
+            'details': 'Something unpredicted happend. Check "error values" for more info'
         }
-    }
+    },
 }
 
 

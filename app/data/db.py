@@ -19,25 +19,24 @@ db_name = APP_WORK_CFG['db-name']
 
 
 
-# creates database Atom_eco if not excists
+# *temporarily* using sync engine - only to check if  database excists and create it (database_exists() works only with sync engine)
 engine = create_engine(f"postgresql://{usr}:{pwd}@{host}:{port}/{db_name}")
 if not database_exists(engine.url):
     create_database(engine.url)
 
 
-# creating async-engine for specific DB: https://docs.sqlalchemy.org/en/20/core/engines.html
+# switch to async engine: creating async-engine for specific DB: https://docs.sqlalchemy.org/en/20/core/engines.html
 DATABSE_URL = f"{sql_vers}+{driver}://{usr}:{pwd}@{host}:{port}/{db_name}"
 engine = create_async_engine(DATABSE_URL)
 
 
-# Создаём все таблицы, если ещё не были созданы
+# Create Tables if threre`s not
 #Base.metadata.create_all(engine)
 async def init_models():
     async with engine.begin() as conn:  
         #await conn.run_sync(Base.metadata.drop_all)
         print('Im inside :)')
         await conn.run_sync(Base.metadata.create_all)
-
 
 # asyncio.run(init_models()) # перенёс в build_some_tabels - там первый инит
 
@@ -47,6 +46,7 @@ async def init_models():
 # object to create new sessions
 sessionFactory = async_sessionmaker(bind=engine, expire_on_commit=False) 
 
+# old way to handle session. now "async with sessionFactory() as session:" is my best friend (capability of AsyncSession with "with" grants right session handling like with handling files)
 async def get_db_session():
     '''
         access to db,

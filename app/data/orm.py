@@ -45,14 +45,15 @@ class Models:
         x_geo = Column(NUMERIC(12,6, asdecimal=False), nullable=False)  # asdecimal=False - permits floats as value without casting to Decimal type
         y_geo = Column(NUMERIC(12,6, asdecimal=False), nullable=False)
 
+        
         def __str__(self):
             return self.name
 
     class PolluterWaste(CommonModel):
         __tablename__ = 'PolluterWaste'
         amount      = Column(Integer, default=0)
-        category    = Column(VARCHAR(32), ForeignKey('WasteCategory.category'))
-        polluter_id = Column(CHAR(36), ForeignKey('Polluter_OO.id')) 
+        category    = Column(VARCHAR(32), ForeignKey('WasteCategory.category'))           # here I think no need to CASCADE deletion - let info about category present after category was removed
+        polluter_id = Column(CHAR(36), ForeignKey('Polluter_OO.id', ondelete='CASCADE'))  # !!! 'CASCADE' deletion when Polluter (parent) is gone
 
         # define relations. also needed to correct svg generation of Tables relations
         polluter = relationship('Polluter_OO')
