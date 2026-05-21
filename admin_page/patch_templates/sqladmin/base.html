@@ -1,0 +1,10 @@
+{% extends "sqladmin_original/base.html" %}
+{% block head_css %}
+    {{ super() }}
+    <style>
+        td:not([class]) {
+            max-width: 400px;
+            white-space: normal;
+        }
+    </style>
+{% endblock %}

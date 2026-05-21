@@ -33,7 +33,7 @@ class Models:
         category = Column(VARCHAR(32), primary_key=True, nullable=False) # uniqness off waste competly relys on it`s name (unlike organizations that may have common names)
         time_to_recycle = Column(Interval, nullable=False)               # usage:  datetime.timedelta(hours=152, minutes=21) | how much it takes to recycle this waste
         
-        def __str__(self):
+        def __repr__(self):
             return self.category
 
     class Polluter_OO(CommonModel):
@@ -45,8 +45,9 @@ class Models:
         x_geo = Column(NUMERIC(12,6, asdecimal=False), nullable=False)  # asdecimal=False - permits floats as value without casting to Decimal type
         y_geo = Column(NUMERIC(12,6, asdecimal=False), nullable=False)
 
+        polluter_waste = relationship('PolluterWaste', back_populates='polluter')
         
-        def __str__(self):
+        def __repr__(self):
             return self.name
 
     class PolluterWaste(CommonModel):
@@ -56,10 +57,10 @@ class Models:
         polluter_id = Column(CHAR(36), ForeignKey('Polluter_OO.id', ondelete='CASCADE'))  # !!! 'CASCADE' deletion when Polluter (parent) is gone
 
         # define relations. also needed to correct svg generation of Tables relations
-        polluter = relationship('Polluter_OO')
+        polluter = relationship('Polluter_OO', back_populates='polluter_waste')
         waste    = relationship('WasteCategory')
-        
-        def __str__(self):
+
+        def __repr__(self):
             return f'{self.category}-{self.polluter_id}'
         
     class TestCI3(CommonModel):

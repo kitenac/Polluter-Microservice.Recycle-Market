@@ -1,9 +1,8 @@
 '''
  cool admin-page - eazy CRUD through db
-    docs: https://aminalaee.dev/sqladmin/ 
+    docs: https://smithyhq.github.io/sqladmin/api_reference/model_view/
 '''
 from sqladmin import Admin, ModelView
-# docs: https://aminalaee.dev/sqladmin/configurations/
 
 from app.data.db import engine, sessionFactory
 from admin_page.patch_admin_lib import patch_datetime 
@@ -19,10 +18,12 @@ models = Models.get_all_DB_models()
 
 #print(*models[2].__table__.columns.keys(), sep='\n')
 
-def create_admin_page(app):
+def create_admin_page(app, templates_dir):
     '''
         Creating app with admin page avaliable at 
         API_URL/admin
+
+        templates_dir - path for custom templates
 
         usage: 
             admin = create_admin_page(name_app)
@@ -31,7 +32,7 @@ def create_admin_page(app):
         TODO: auth
     '''
     
-    admin = Admin(app, engine=engine, session_maker=sessionFactory, title=f"Admin page | {app.title}")
+    admin = Admin(app, templates_dir=templates_dir, engine=engine, session_maker=sessionFactory, title=f"Admin page | {app.title}")
 
 
 

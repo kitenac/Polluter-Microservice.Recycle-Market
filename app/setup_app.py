@@ -66,7 +66,7 @@ atom_eco_app.include_router(routes_OO)
 
 
 # Mount the admin page app to main app - /admin
-admin = create_admin_page(atom_eco_app)
+admin = create_admin_page(atom_eco_app, templates_dir='admin_page/patch_templates')
 atom_eco_app.mount(app=admin, path='/admin')
 
 
