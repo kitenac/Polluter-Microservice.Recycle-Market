@@ -3,12 +3,14 @@ Configuring access to Database
 - engine (creds + database type)
 - individual db-session for each request
 '''
+import asyncio
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from sqlalchemy import create_engine # just for creating DB - sync way is also afordable
 from sqlalchemy_utils import database_exists, create_database
 
 from app.data.orm import Base # all Tables from models inherits from it => can create `em here 
 from app.app_config import APP_WORK_CFG # config tells: dev or prod mode is running
+
 
 MODE = APP_WORK_CFG['WORK_MODE']
 
@@ -20,9 +22,10 @@ db_name = APP_WORK_CFG['db-name']
 
 
 # *temporarily* using sync engine - only to check if  database excists and create it (database_exists() works only with sync engine)
-engine = create_engine(f"postgresql://{usr}:{pwd}@{host}:{port}/{db_name}")
-if not database_exists(engine.url):
-    create_database(engine.url)
+sync_engine = create_engine(f"postgresql://{usr}:{pwd}@{host}:{port}/{db_name}")
+
+if not database_exists(sync_engine.url):
+    create_database(sync_engine.url)
 
 
 # switch to async engine: creating async-engine for specific DB: https://docs.sqlalchemy.org/en/20/core/engines.html
@@ -34,11 +37,19 @@ engine = create_async_engine(DATABSE_URL)
 #Base.metadata.create_all(engine)
 async def init_models():
     async with engine.begin() as conn:  
-        #await conn.run_sync(Base.metadata.drop_all)
         print('Im inside :)')
         await conn.run_sync(Base.metadata.create_all)
 
-# asyncio.run(init_models()) # перенёс в build_some_tabels - там первый инит
+
+async def recreate_db():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+        await conn.run_sync(Base.metadata.create_all)
+
+# Remake DB
+# asyncio.run(recreate_db())
+# python3 -m app.data.preparing.build_some_tables
+# TODO: wrap command above in exec()
 
 
 

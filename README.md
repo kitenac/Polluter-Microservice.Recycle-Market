@@ -8,7 +8,7 @@ shortly - it`s the first microservice from project - Polluter Microservice
 ### Scripts
 
 #### Init DB
-python3 -m app.data.preparing.build_some_tables.py 
+python3 -m app.data.preparing.build_some_tables
 
 #### Create svg diagram of DB`s Tables relationships
 python3 -m db_visualizer.db_visualizer 

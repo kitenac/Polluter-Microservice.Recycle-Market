@@ -1,9 +1,13 @@
 from fastapi import HTTPException, Response
 from app.web.response_statuses import common_statuses
 
+from logging import getLogger
+
 from functools import wraps # to correctly wrap (in my custom wrapper) endpoint`s functions - so that fastapi and OpenAPI can be pretty
 #from psycopg.errors import ForeignKeyViolation
 from sqlalchemy.exc import IntegrityError
+
+logger = getLogger(__name__) 
 
 '''
 HTTP status code-handlers for typical situations
@@ -40,11 +44,13 @@ def try_except_commonHandler(endpoint_func: callable):
         
         # ------ Handle common exceptions for endpoints ------
         except IntegrityError as e:
+            logger.error('ups...', exc_info=True)   # log exception into app`s console not to lose crutial error info
             invalid_FK_handler(e)
 
         except Exception as e:
             # here we bypass (raise upper) already handled Exceptions that poped up from endpoint`s function 
             if e.detail:
+                logger.error('ups...', exc_info=True)
                 raise HTTPException(e.status_code, e.detail)
             # ones that realy wasnt handled
             unknown_err_handler(e) 

@@ -116,8 +116,8 @@ async def get_all_polluter_wastes():
     return await read_table(Models.WasteCategory, WasteCategory)
 
 
-# use 204 code on success bc it`s logical + economy (empty content)
-@router.delete('/{polluter_id}', status_code=204, summary='delete pollutter')
+# use 200 code on success - for verbose deletion output (204 code can`t provide space for content)
+@router.delete('/{polluter_id}', status_code=200, summary='delete pollutter')
 @try_except_commonHandler
 async def del_polluter(
     polluter_id: str
@@ -125,12 +125,16 @@ async def del_polluter(
     async with sessionFactory() as session:
         row = await session.execute(select(Models.Polluter_OO).where(Models.Polluter_OO.id == polluter_id))
         row = row.scalar_one_or_none()
+        name = row.name
         await session.delete(row)
         await session.commit()      # prevent silent rollback() on error 
-        # INFO: cascade deletion of all the Polluter`s child-entities is already configured in models - see "ondelete='CASCADE'" in orm.py        
- 
-        pass
+        # NOTE: cascade deletion of all the Polluter`s child-entities is already configured in models - see "ondelete='CASCADE'" in orm.py        
 
+        return API_Response(
+            **common_statuses[200]['DELETED'],
+            data=[name]
+            )
+    
 ''' #TODO
 - Delete PolluterWaste
 

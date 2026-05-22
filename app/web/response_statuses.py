@@ -8,7 +8,10 @@ common_statuses = {
         'OK': {
             'status': 'OK',
             'details': 'all right'
-        }
+        },
+        'DELETED': {
+            'status': 'DELETED',
+        },
     },
     201: {
         'CREATED':
