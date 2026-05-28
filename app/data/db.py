@@ -47,9 +47,9 @@ async def recreate_db():
         await conn.run_sync(Base.metadata.create_all)
 
 # Remake DB
-# asyncio.run(recreate_db())
-# python3 -m app.data.preparing.build_some_tables
-# TODO: wrap command above in exec()
+#asyncio.run(recreate_db())
+#python3 -m app.data.preparing.build_some_tables
+# TODO: wrap command above in exec() - path issues / or mb call func itself (circular import)
 
 
 

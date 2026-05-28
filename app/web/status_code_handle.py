@@ -82,7 +82,7 @@ def category_handler(category: str):
         })   
 
 
-def amount_to_create_handler(amount: int):
+def unpositive_amount_handler(amount: int):
     ''' handles when it`s invalid amount of entities to create
         - Returns Response 204 (tricky to throw due it have to contain empty content field and fastapi violates it) or Throws HTTP exception when amount < 0'''
     if amount == 0:

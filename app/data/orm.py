@@ -1,4 +1,4 @@
-from sqlalchemy import Column, ForeignKey, Integer, CHAR, VARCHAR, TIMESTAMP, Interval, NUMERIC
+from sqlalchemy import Column, ForeignKey, Integer, CHAR, VARCHAR, TIMESTAMP, Interval, NUMERIC, CheckConstraint
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship  # high level data access for related tables
 import uuid
@@ -74,23 +74,58 @@ class Models:
         y_geo = Column(NUMERIC(12,6, asdecimal=False), nullable=False)
 
         polluter_waste = relationship('PolluterWaste', back_populates='polluter', passive_deletes=True) # passive_deletes=True - disable "ORM" NULL-ing FK (parent id) for orphaned children 
+        polluter_storage = relationship('PolluterStorage', back_populates='polluter', passive_deletes=True)
 
         def __repr__(self):
             return self.name
 
+
     class PolluterWaste(CommonModel):
+        '''
+        Announced packs of wastes 
+            ~ it`s like "Whishlist" of wastes to be released (releases by contract)    
+        '''
         __tablename__ = 'PolluterWaste'
         amount      = Column(Integer, default=0)
         category    = Column(VARCHAR(32), ForeignKey('WasteCategory.category'))           # here I think no need to CASCADE deletion - let info about category present after category was removed
         polluter_id = Column(CHAR(36), ForeignKey('Polluter_OO.id', ondelete='CASCADE'))  # enable "True db" CASCADE deletion when parent dies
+        contract_id = Column(CHAR(36), nullable=True)                                     # indicator for deal to release recycler/logist or both
 
         # define relations. also needed to correct svg generation of Tables relations
         polluter = relationship('Polluter_OO', back_populates='polluter_waste')           
         waste    = relationship('WasteCategory')
 
+        # constraints
+        __table_args__ = (
+            CheckConstraint('amount >= 0', name='check_amount_non_negative'),
+        )
+
         def __repr__(self):
             return f'{self.category}-{self.polluter_id}'
         
+    # Statics over PolluterWaste table for each polluter and it`s carried WasteType 
+    # - how much wastes
+    # - how many of wastes are contracted (may be larger than amount - stash for future wastes)
+    class PolluterStorage(CommonModel):
+        __tablename__     = 'PolluterStorage'
+        category          = Column(VARCHAR(32), ForeignKey('WasteCategory.category'))  
+        amount            = Column(Integer, default=0)
+        contracted_amount = Column(Integer, default=0)
+        polluter_id = Column(CHAR(36), ForeignKey('Polluter_OO.id', ondelete='CASCADE'))
+
+        polluter = relationship('Polluter_OO', back_populates='polluter_storage')           
+        waste    = relationship('WasteCategory')
+
+        # constraints
+        __table_args__ = (
+            CheckConstraint('amount >= 0', name='check_amount_non_negative'),
+            CheckConstraint('contracted_amount >= 0', name='check_contracted_amount_non_negative')
+        )
+
+        def __repr__(self):
+            return f'{self.polluter_id}-{self.category}-all:{self.amount}-contracted:{self.contracted_amount}'
+    
+
     class TestCI3(CommonModel):
         __tablename__ = 'TestCI'
         kek = Column(CHAR(32), default=67)

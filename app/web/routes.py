@@ -6,14 +6,13 @@ from app.data.db import get_db_session, sessionFactory
 from app.data.orm import Models
 from app.data.schemas import *
 from app.web.response_statuses import common_statuses
-from app.web.status_code_handle import category_handler, amount_to_create_handler, try_except_commonHandler
+from app.web.status_code_handle import category_handler, unpositive_amount_handler, try_except_commonHandler
 
 from app.data.preparing.build_some_tables import Build_Tables # reuse generation records for Tables from mock-function. also we can reuse Factories from mocktables + push in db - like in Build_Tables :)
 
 router = APIRouter(prefix='/polluter')
 
 
-# Create pollutor
 @router.post('', status_code=201, summary='add polluter-organization')
 async def create_polluter(
     name:  str   = Body(description='company name'), 
@@ -32,20 +31,18 @@ async def create_polluter(
         data=[convert_to_pydentic(polluter, Polluter_OO)]
     )
 
-
-# Add wastes to PolluterWastes queue
-@router.post('/{polluter_id}/wastes', status_code=201, summary='Add (register) some waste from chosen polluter')
+@router.post('/polluter-wastes', status_code=201, summary='Add (register/publish) some waste')
 @try_except_commonHandler  # handle FK (id) related execeptions from db - by catching it in decorator`s wrapper
 async def add_polluter_wastes(
-   polluter_id:  str,
+   polluter_id:  str = Body(),
    amount:       int = Body(), 
    category:     str = Body(), 
    SessionLocal: AsyncSession = Depends(get_db_session)
 ):
-    ''' Registrate new waste (of some category and ammont) by some polluter organization. recycler will watch this queue '''
+    ''' Registrate new waste (of some category and amount) by some polluter organization. contracted partner (recycler/logist) will watch this queue by contract_id '''
     
     # handling invalid params
-    if amount < 1: return amount_to_create_handler(amount) 
+    if amount < 1: return unpositive_amount_handler(amount) 
     category_handler(category) # Rise HTTP exception 409 if chosen category doesn`t excists
     
     polluter_waste = Models.PolluterWaste(
@@ -65,14 +62,13 @@ async def add_polluter_wastes(
     )
 
 
-@router.post('/fill/random_polluter_wastes', status_code=201, summary='Add amount of random wastes from random polluteres')
+@router.post('/polluter-wastes/fill/random', status_code=201, summary='Add amount of random wastes from random polluteres')
 async def add_polluter_wastes(
     amount: int = Body(description='amount of wastes to add')
 ):
     '''Generate random wastes (type + amount) by random Polluter'''
+    if amount < 1: return unpositive_amount_handler(amount) 
     
-    if amount < 1: return amount_to_create_handler(amount) 
-
     rnd_wastes = await Build_Tables.OO_wastes_populate(amount)  # reuse generation records for Tables from mock-function
         
     return API_Response(
@@ -80,9 +76,109 @@ async def add_polluter_wastes(
         data=rnd_wastes,
         meta=API_Response.MetaData(total=amount, metadata='mock-generated data')
     )
-    
 
-# Read
+# use 200 code on success - for verbose deletion output (204 code can`t provide space for content)
+@router.delete('/{polluter_id}', status_code=200, summary='delete pollutter')
+@try_except_commonHandler
+async def del_polluter(
+    polluter_id: str
+):
+    async with sessionFactory() as session:
+        row = await session.execute(select(Models.Polluter_OO).where(Models.Polluter_OO.id == polluter_id))
+        row = row.scalar_one_or_none()
+        name = row.name
+        await session.delete(row)
+        await session.commit()      # prevent silent rollback() on error 
+        # NOTE: cascade deletion of all the Polluter`s child-entities is already configured in models - see "ondelete='CASCADE'" in orm.py        
+
+        return API_Response(
+            **common_statuses[200]['DELETED'],
+            data=[name]
+            )
+
+
+# TODO: Auth via ~AAA-Microservice - Polluter (must be owner of waste) 
+@router.delete('/polluter-wastes/delete/{polluter_waste_id}', status_code=200, summary='manual delete published wastes in case of mistake')
+async def release_polluter_waste(
+        polluter_waste_id: str
+    ):
+    ''' Release wastes if contract is performed '''
+
+    async with sessionFactory() as session:
+        row = await session.execute(select(Models.PolluterWaste).where(Models.PolluterWaste.id == polluter_waste_id))
+        row = row.scalar_one_or_none()
+        await session.delete(row)
+        await session.commit()      # prevent silent rollback() on error 
+
+        return API_Response(
+            **common_statuses[200]['DELETED'],
+            data=[f'Manually delted polluter waste: {polluter_waste_id}']
+            )
+
+# TODO: somehow handle Contract: 
+#   1. Check Contract status before action (body param)
+#   2. Verify Contract Provider (via ~AAA-Microservice)
+@router.delete('/polluter-wastes/contract/{contract_id}/done', status_code=200, summary='(TODO - contract (provider) handling) | release wastes that was carried by Logist according to Contract.')
+async def release_polluter_waste(
+        contract_id: str
+    ):
+    ''' Release wastes if contract is performed '''
+
+    async with sessionFactory() as session:
+        rows = await session.execute(select(Models.PolluterWaste).where(Models.PolluterWaste.contract_id == contract_id))
+        rows = rows.scalars().all()
+        #print(f'contracted rows - {rows}') 
+        for row in rows: await session.delete(row)  # not CASCADE, due Contracts Table is on different microservice 
+        await session.commit()      # prevent silent rollback() on error 
+
+        return API_Response(
+            **common_statuses[200]['DELETED'],
+            data=[f'contract-{contract_id} success for Polluter. Relesed {len(rows)} waste positions']
+            )
+    
+# TODO: somehow handle Contract: 
+#   1. Verify Contract Provider (mb Pub Key in Body param)
+#   2. Check Contract status before action
+@router.put('/polluter-wastes/contract/{contract_id}/fail', status_code=200, summary='(TODO - Polluter Auth) | Set contract tag back to NULL due contract failed')
+async def resign_contract(
+    contract_id: str,     
+):
+    ''' Handle contract_id failure: when release_time is over - Contract Microservice will pull this endpoint (inform polluter_id) '''    
+    async with sessionFactory() as session:    
+        rows = await session.execute(select(Models.PolluterWaste).where(Models.PolluterWaste.contract_id == contract_id))
+        rows = rows.scalars().all()
+        for row in rows: row.contract_id = None
+        await session.commit()      # prevent silent rollback() on error 
+
+        return API_Response(
+            **common_statuses[200]['OK'],
+            data=[f'contract-{contract_id} failure message is delivered to Polluter. Resigned contract for {len(rows)} waste positions']
+            )
+
+
+# TODO: Auth via ~AAA-Microservice - Polluter (must be owner of waste) 
+@router.put('/polluter-wastes/update/{polluter_waste_id}', status_code=200, summary='(TODO - Polluter Auth) | Manual update ammount of published waste in case of mistake.')
+async def correct_amount(
+    polluter_waste_id: str,
+    amount: int
+):
+    async with sessionFactory() as session:
+        if amount == 0: return Response(status_code=409, content='to delete resourse - use DELETE method')  # special case
+        if amount < 1: return unpositive_amount_handler(amount)
+
+        row = await session.execute(select(Models.PolluterWaste).where(Models.PolluterWaste.id == polluter_waste_id))
+        row = row.scalar_one_or_none()
+        
+        row.amount = amount
+        await session.commit()      # prevent silent rollback() on error 
+
+        return API_Response(
+            **common_statuses[200]['OK'],
+            data=[f'updated ']
+            )
+
+
+# Read tables
 async def read_table(
         ORM_Model, 
         Schema: BaseModel):
@@ -107,38 +203,10 @@ async def read_table(
 async def get_all_polluters():
     return await read_table(Models.Polluter_OO, Polluter_OO)
 
-@router.get('polluter-wastes', summary='get all the polluters` wastes')
+@router.get('/polluter-wastes', summary='get all the polluters` wastes')
 async def get_all_polluter_wastes():
     return await read_table(Models.PolluterWaste, PolluterWaste)
 
-@router.get('waste-categories', summary='get all excisting waste types')
+@router.get('/waste-categories', summary='get all excisting waste types')
 async def get_all_polluter_wastes():
     return await read_table(Models.WasteCategory, WasteCategory)
-
-
-# use 200 code on success - for verbose deletion output (204 code can`t provide space for content)
-@router.delete('/{polluter_id}', status_code=200, summary='delete pollutter')
-@try_except_commonHandler
-async def del_polluter(
-    polluter_id: str
-):
-    async with sessionFactory() as session:
-        row = await session.execute(select(Models.Polluter_OO).where(Models.Polluter_OO.id == polluter_id))
-        row = row.scalar_one_or_none()
-        name = row.name
-        await session.delete(row)
-        await session.commit()      # prevent silent rollback() on error 
-        # NOTE: cascade deletion of all the Polluter`s child-entities is already configured in models - see "ondelete='CASCADE'" in orm.py        
-
-        return API_Response(
-            **common_statuses[200]['DELETED'],
-            data=[name]
-            )
-    
-''' #TODO
-- Delete PolluterWaste
-
-- Upadte
-- mb /Search (filter + pagination)? - i`d use separate file for this - it`d too gross
-- other HTTP methods
-'''

@@ -39,7 +39,7 @@ common_statuses = {
         },
         'ERR_NEGATIVE_ENTITIES':{
             'status': 'ERR_NEGATIVE_ENTITIES',
-            'details': 'Number of entitis must be > 0. -You can try DELETE method for this resource instead :)'
+            'details': 'Number of entities must be > 0. -You can try switch method to DELETE or CREATE for this resource instead :)'
         },
     },
     500: {
