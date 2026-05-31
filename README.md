@@ -1,5 +1,5 @@
 # Description is in progress...
-shortly - it`s the first microservice from project - Polluter Microservice
+shortly - it`s the first microservice "Polluter Microservice" from project "Recycler Market" 
 - \* there`ll be link to main repo, where all the microservices are being run with k8s \*  
 - \* also links to other microservices of this project \*
 

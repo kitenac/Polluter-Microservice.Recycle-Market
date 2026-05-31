@@ -103,28 +103,6 @@ class Models:
         def __repr__(self):
             return f'{self.category}-{self.polluter_id}'
         
-    # Statics over PolluterWaste table for each polluter and it`s carried WasteType 
-    # - how much wastes
-    # - how many of wastes are contracted (may be larger than amount - stash for future wastes)
-    class PolluterStorage(CommonModel):
-        __tablename__     = 'PolluterStorage'
-        category          = Column(VARCHAR(32), ForeignKey('WasteCategory.category'))  
-        amount            = Column(Integer, default=0)
-        contracted_amount = Column(Integer, default=0)
-        polluter_id = Column(CHAR(36), ForeignKey('Polluter_OO.id', ondelete='CASCADE'))
-
-        polluter = relationship('Polluter_OO', back_populates='polluter_storage')           
-        waste    = relationship('WasteCategory')
-
-        # constraints
-        __table_args__ = (
-            CheckConstraint('amount >= 0', name='check_amount_non_negative'),
-            CheckConstraint('contracted_amount >= 0', name='check_contracted_amount_non_negative')
-        )
-
-        def __repr__(self):
-            return f'{self.polluter_id}-{self.category}-all:{self.amount}-contracted:{self.contracted_amount}'
-    
 
     class TestCI3(CommonModel):
         __tablename__ = 'TestCI'
