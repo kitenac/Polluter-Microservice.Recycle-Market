@@ -74,7 +74,6 @@ class Models:
         y_geo = Column(NUMERIC(12,6, asdecimal=False), nullable=False)
 
         polluter_waste = relationship('PolluterWaste', back_populates='polluter', passive_deletes=True) # passive_deletes=True - disable "ORM" NULL-ing FK (parent id) for orphaned children 
-        polluter_storage = relationship('PolluterStorage', back_populates='polluter', passive_deletes=True)
 
         def __repr__(self):
             return self.name

@@ -2,12 +2,15 @@ from fastapi import APIRouter, Depends, Body, HTTPException, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
+from math import ceil
+
 from app.data.db import get_db_session, sessionFactory
 from app.data.orm import Models
 from app.data.schemas import *
 from app.web.response_statuses import common_statuses
 from app.web.status_code_handle import category_handler, unpositive_amount_handler, try_except_commonHandler
 
+from app.web.feature.helpers import prepare_params            # for /search
 from app.data.preparing.build_some_tables import Build_Tables # reuse generation records for Tables from mock-function. also we can reuse Factories from mocktables + push in db - like in Build_Tables :)
 
 router = APIRouter(prefix='/polluter')
@@ -34,13 +37,12 @@ async def create_polluter(
 @router.post('/polluter-wastes', status_code=201, summary='Add (register/publish) some waste')
 @try_except_commonHandler  # handle FK (id) related execeptions from db - by catching it in decorator`s wrapper
 async def add_polluter_wastes(
-   polluter_id:  str = Body(),
-   amount:       int = Body(), 
-   category:     str = Body(), 
+   polluter_waste: PolluterWaste = Body(),
    SessionLocal: AsyncSession = Depends(get_db_session)
 ):
     ''' Registrate new waste (of some category and amount) by some polluter organization. contracted partner (recycler/logist) will watch this queue by contract_id '''
-    
+    polluter_id, amount, category = polluter_waste.polluter_id, polluter_waste.amount, polluter_waste.category
+
     # handling invalid params
     if amount < 1: return unpositive_amount_handler(amount) 
     category_handler(category) # Rise HTTP exception 409 if chosen category doesn`t excists
@@ -174,11 +176,11 @@ async def correct_amount(
 
         return API_Response(
             **common_statuses[200]['OK'],
-            data=[f'updated ']
+            data=[f'updated amount: {amount}']
             )
 
 
-# Read tables
+# Read all Table`s columns 
 async def read_table(
         ORM_Model, 
         Schema: BaseModel):
@@ -210,3 +212,70 @@ async def get_all_polluter_wastes():
 @router.get('/waste-categories', summary='get all excisting waste types')
 async def get_all_polluter_wastes():
     return await read_table(Models.WasteCategory, WasteCategory)
+
+
+# Search: pagination + filtering + sorting
+async def search(   
+        pagination: PaginationParams, 
+        filter: Optional[FilterParams],
+        schema,
+        model,
+        sessionFactory: AsyncSession
+    ):
+     
+    async with sessionFactory() as session:
+        stmt = select(model)
+        
+        # search 
+        if filter:
+            search, search_col, method = filter.value, filter.filter_column, filter.method  
+            if search_col in model.__table__.columns.keys():
+                # chose search method for statement
+                if method   == 'ilike': # case-insensitive
+                    stmt = stmt.filter(model.__dict__[search_col].ilike(f'%{search}%')) # %-wrapping - need for db to search partitial mathing
+                elif method == 'like':  # case-sensitive
+                    stmt = stmt.filter(model.__dict__[search_col].like(f'%{search}%'))
+                elif method == 'equal': # sensitiviest :)))
+                    stmt = stmt.where(model.__dict__[search_col] == search)   
+            else:
+                return Response(status_code=422, content=f'no such column to search in: {search_col}')
+
+        # pagination
+        if pagination.order and pagination.order.lstrip('-') not in model.__table__.columns.keys():
+            return Response(status_code=422, content=f'no such column to ORDER BY: {pagination.order}') 
+        
+        skip, order = prepare_params(pagination, model)
+        total = await session.execute(stmt)
+        total = len(total.scalars().all()) 
+
+        if pagination.page > ceil(total / pagination.limit): 
+            return Response(status_code=422, content=f'max page number is: {ceil(total / pagination.limit)}, while page #{pagination.page} was requested')
+        
+        # sorting - must be called before slicing (group by must be before limit amd offset)
+        if not order == False:  # NOTE: 
+           stmt = stmt.order_by(order)
+
+        # pagination - slicing
+        page_stmt = stmt.offset(skip).limit(pagination.limit)
+        data = await session.execute(page_stmt)
+        data = data.scalars().all()
+
+        return API_Response( 
+            data = [schema(**row.__dict__) for row in data], # unpack dictionary of models` key to initialize schema
+            meta = API_Response.MetaData(total=total))
+    
+    
+@router.post('/search', summary='search + pagination for all the polluters')
+async def search_polluters(
+    pagination: PaginationParams   = Body(description='pagination'),
+    filter: Optional[FilterParams] = Body(description='(optional) specified string to search in specified column', default=None)
+):
+    return await search(pagination, filter, Polluter_OO, Models.Polluter_OO, sessionFactory)
+
+
+@router.post('/search/polluter-wastes', summary='search + pagination for all the polluters` wastes')
+async def search_polluter_wastes(
+    pagination: PaginationParams   = Body(description='pagination'),
+    filter: Optional[FilterParams] = Body(description='(optional) specified string to search in specified column', default=None)
+):
+    return await search(pagination, filter, PolluterWaste, Models.PolluterWaste, sessionFactory)
