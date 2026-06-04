@@ -4,6 +4,10 @@ shortly - it`s the first microservice "Polluter Microservice" from project "Recy
 - \* also links to other microservices of this project \*
 
 
+# Working modes 
+'dev': for development
+'DEBUG': verbose logs from web server and db 
+'prod': when backend run as container. Docker`s internal DNS would resolve container`s ip by name of container
 
 ### Scripts
 

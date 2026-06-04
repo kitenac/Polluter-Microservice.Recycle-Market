@@ -13,6 +13,7 @@ from app.app_config import APP_WORK_CFG # config tells: dev or prod mode is runn
 
 
 MODE = APP_WORK_CFG['WORK_MODE']
+Echo_Mode = True if MODE == 'DEBUG' else False  # Enable logging for all DB queries if DEBUG mode is set
 
 host, port = APP_WORK_CFG['db-hosts'][MODE], '5432'
 sql_vers, driver = 'postgresql', 'psycopg'  # info about db-engine psycopg: https://pypi.org/project/psycopg/ 
@@ -30,7 +31,7 @@ if not database_exists(sync_engine.url):
 
 # switch to async engine: creating async-engine for specific DB: https://docs.sqlalchemy.org/en/20/core/engines.html
 DATABSE_URL = f"{sql_vers}+{driver}://{usr}:{pwd}@{host}:{port}/{db_name}"
-engine = create_async_engine(DATABSE_URL)
+engine = create_async_engine(DATABSE_URL, echo=Echo_Mode)
 
 
 # Create Tables if threre`s not

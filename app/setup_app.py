@@ -7,6 +7,7 @@ etc
 '''
 import uvicorn # server engine
 import logging
+from time import perf_counter
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,11 +21,14 @@ from app.web.routes import router as routes_OO
 from app.app_config import APP_WORK_CFG # config tells: dev or prod mode is running
 
 
+MODE = APP_WORK_CFG['WORK_MODE']
+Echo_Mode = True if MODE == 'DEBUG' else False  # Enable logging for all DB queries if DEBUG mode is set
 
 
 # ==== HTTP App configuration
 # Настройка логирования
-logging.basicConfig(level=logging.INFO)
+log_lvl = logging.DEBUG if MODE == 'DEBUG' else logging.INFO # set logging.DEBUG if app run in DEBUG mode 
+logging.basicConfig(level=log_lvl)
 logger = logging.getLogger(__name__)
 
 
@@ -50,7 +54,7 @@ CORS_conf = {
   'headers': ['*']    # Accept, Content-Type, Referer, Content-Length ...
 }
 
-# Добавим middleware для CORS
+# Adding FastApi`s Middleware for CORS
 atom_eco_app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_conf['origins'],     
@@ -58,6 +62,18 @@ atom_eco_app.add_middleware(
     allow_methods=CORS_conf['methods'],     
     allow_headers=CORS_conf['headers'],     
 )
+
+# Adding custom Middleware for logging HTTP communication with API (requsests and responses)
+@atom_eco_app.middleware('http')
+async def log_communcation_with_API(request: Request, call_next):
+    ''' just one of midleware chain function. has access to Requset in app`s context'''
+    start_time = perf_counter()
+    logger.debug(f"   Got request {request.method} {request.url.path} from {request.client.host}")  # NOTE: to see client IP if backend works via Proxy (i.e. HTTPS Proxy that unencrypts data) - check headers: X-Forwarded-For или X-Real-IP
+    response = await call_next(request) # pass execution for next midleware in queue - mandatory step if u want midlware to work :)
+    duration = (perf_counter() - start_time) * 1000 # convert 0.123 s -> to 123 ms
+    logger.debug(f"   Response: {response.status_code} for client {request.client.host} ({duration:.3f}ms)")
+    
+    return response
 
 
 # URL prefixes handlers 
