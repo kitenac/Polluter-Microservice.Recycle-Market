@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Body, HTTPException, Response
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 
 from math import ceil
 
@@ -245,8 +245,10 @@ async def search(
             return Response(status_code=422, content=f'no such column to ORDER BY: {pagination.order}') 
         
         skip, order = prepare_params(pagination, model)
-        total = await session.execute(stmt)
-        total = len(total.scalars().all()) 
+
+        stmt_COUNT = select(func.count()).select_from(stmt) # COUNT by database
+        total = await session.execute(stmt_COUNT)
+        total = total.scalar()
 
         if pagination.page > ceil(total / pagination.limit): 
             return Response(status_code=422, content=f'max page number is: {ceil(total / pagination.limit)}, while page #{pagination.page} was requested')

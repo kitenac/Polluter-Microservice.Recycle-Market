@@ -33,7 +33,7 @@ def prepare_params(
                     e.g. order = Polluter.name
         '''
 
-        if column not in model.__table__.columns.keys():
+        if not column or column.lstrip('-') not in model.__table__.columns.keys():
             return False # no sorting required
 
         # Truncate leading '-' and set DESC mode if need

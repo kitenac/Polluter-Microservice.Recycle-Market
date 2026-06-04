@@ -28,7 +28,7 @@ class API_Response(BaseModel):
 class PaginationParams(BaseModel):
    limit: int           = Field(ge=1, description='Amount of elements on a page')
    page:  int           = Field(ge=1, description='Page number')
-   order: Optional[str] = Field(description='(Optional) ordering for displayed page in ASC or DESC (with leading "-") order', default=None)
+   order: Optional[str] = Field(description='(Optional) ordering for displayed page in ASC or DESC (with leading "-") order by column', default=None)
 
 class FilterParams(BaseModel):   
    filter_column: str   = Field(description='Column to search in')
