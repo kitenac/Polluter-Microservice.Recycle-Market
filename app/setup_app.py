@@ -22,7 +22,6 @@ from app.app_config import APP_WORK_CFG # config tells: dev or prod mode is runn
 
 
 MODE = APP_WORK_CFG['WORK_MODE']
-Echo_Mode = True if MODE == 'DEBUG' else False  # Enable logging for all DB queries if DEBUG mode is set
 
 
 # ==== HTTP App configuration

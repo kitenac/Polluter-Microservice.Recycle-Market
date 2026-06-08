@@ -5,6 +5,7 @@ sqlalchemy_utils                    # ORM helper functions: database_exists, cre
 psycopg[binary,pool]                # aka psycopg3 - it supports async DB engine 
 psycopg2-binary                     # another patch for pity psycopg deprication :) -hope next time it won`t force u to seek for another stable name |  dependency for creating DB
 pytest                              # tests
+httpx                               # for FastApi`s TestClient (for tests)
 graphviz                            # to draw
 lxml                                # lib to draw svg tables (it was taken from users lib "sqlalchemy-data-model-visualizer" not to import it entirely with all the deps) 
 faker                               # mocks data

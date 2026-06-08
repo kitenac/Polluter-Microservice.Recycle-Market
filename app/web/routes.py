@@ -120,7 +120,7 @@ async def release_polluter_waste(
 # TODO: somehow handle Contract: 
 #   1. Check Contract status before action (body param)
 #   2. Verify Contract Provider (via ~AAA-Microservice)
-@router.delete('/polluter-wastes/contract/{contract_id}/done', status_code=200, summary='(TODO - contract (provider) handling) | release wastes that was carried by Logist according to Contract.')
+@router.delete('/contracts/release/{contract_id}/confirm', status_code=200, summary='(TODO) | Polluter confirms that wastes were released according to Contract.')
 async def release_polluter_waste(
         contract_id: str
     ):
@@ -141,7 +141,7 @@ async def release_polluter_waste(
 # TODO: somehow handle Contract: 
 #   1. Verify Contract Provider (mb Pub Key in Body param)
 #   2. Check Contract status before action
-@router.put('/polluter-wastes/contract/{contract_id}/fail', status_code=200, summary='(TODO - Polluter Auth) | Set contract tag back to NULL due contract failed')
+@router.put('/contracts/release/{contract_id}/resign', status_code=200, summary='(TODO - Polluter Auth) | Polluter decided to resign contract due contract has failed or smth else. Set contract tag back to NULL')
 async def resign_contract(
     contract_id: str,     
 ):
@@ -158,25 +158,52 @@ async def resign_contract(
             )
 
 
-# TODO: Auth via ~AAA-Microservice - Polluter (must be owner of waste) 
-@router.put('/polluter-wastes/update/{polluter_waste_id}', status_code=200, summary='(TODO - Polluter Auth) | Manual update ammount of published waste in case of mistake.')
+@router.put('/{polluter_id}', status_code=200, summary='(TODO - Polluter Auth) | Manual modify polluter`s coords')
+async def correct_coords(
+    polluter_id: str,
+    x_geo: float = Body(),
+    y_geo: float = Body()
+
+):
+    ''' Update coords pf Polluter. Checks if Polluter has any active release contracts before modifying coords (affects carring distance) '''
+    async with sessionFactory() as session:
+        row = await session.execute(select(Models.Polluter_OO).where(Models.Polluter_OO.id == polluter_id))
+        row = row.scalar_one_or_none()
+
+        # check if some waste is contraced => can`t modify coords
+        contracted_wastes = await session.execute(select(Models.PolluterWaste).where(Models.PolluterWaste.polluter_id == polluter_id, Models.PolluterWaste.contract_id.is_not(None)))
+        contracted_wastes = contracted_wastes.scalars().all()
+        if contracted_wastes: return Response(status_code=412, content=f'Can`t modify polluter`s coords due it`s already contracted to release. For ex see contract_id: {contracted_wastes}')
+
+        row.x_geo, row.y_geo = x_geo, y_geo
+        await session.commit()      # prevent silent rollback() on error 
+
+        return API_Response(
+            **common_statuses[200]['OK'],
+            data=[f'updated coords: {row.x_geo, row.y_geo}']
+            )
+
+
+@router.put('/polluter-wastes/{polluter_waste_id}', status_code=200, summary='(TODO - Polluter Auth) | Manual update ammount of published waste in case of mistake.')
 async def correct_amount(
     polluter_waste_id: str,
     amount: int
 ):
+    ''' Update amount of wastes. Checks if PolluterWastes already have active relese contract before modifying amount of wastes (affects carring weight)'''
     async with sessionFactory() as session:
         if amount == 0: return Response(status_code=409, content='to delete resourse - use DELETE method')  # special case
         if amount < 1: return unpositive_amount_handler(amount)
 
         row = await session.execute(select(Models.PolluterWaste).where(Models.PolluterWaste.id == polluter_waste_id))
         row = row.scalar_one_or_none()
-        
+        if row.contract_id: return Response(status_code=412, content=f'Can`t modify waste package due it`s already contracted to release: {row.contract_id}')
+
         row.amount = amount
         await session.commit()      # prevent silent rollback() on error 
 
         return API_Response(
             **common_statuses[200]['OK'],
-            data=[f'updated amount: {amount}']
+            data=[f'updated amount: {row.amount}']
             )
 
 
